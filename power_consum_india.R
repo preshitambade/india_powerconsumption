@@ -64,6 +64,33 @@ glimpse(power)
 summary(power)
 unique(power$Date)
 
+####################################
+#creating other useful sub-datasets
+####################################
+#1. Load dataset
+power_total_long3 <- power %>%
+  filter(States != "ALL INDIA TOTAL") %>%  #  filter(States != "ALL INDIA TOTAL" & Date == as.Date("2019-10-28")) %>% 
+  select(Date, States, Usage) # , longitude, latitude: don't need long and lat as it is already in shape file
+
+# power_total_long3 <- power %>%
+#   filter(States != "ALL INDIA TOTAL") %>% 
+#   select(Date, States, Usage) # , longitude, latitude: don't need long and lat as it is already in shape file
+
+
+
+# change state names in dataframe
+library(plyr)
+library(dplyr)
+
+power_total_long3 <- power_total_long3 %>% 
+  mutate(States=revalue(States, c("HP"="Himachal Pradesh", "DNH"="Dadara & Nagar Havelli",
+                                  "J&K"="Jammu and Kashmir", "MP"="Madhya Pradesh",
+                                  "NER Meghalaya"="Meghalaya", "Delhi"="NCT of Delhi",
+                                  "Pondy"="Puducherry","NR UP"="Uttar Pradesh")))
+
+# above step is done to matche the state names with the shape files used in spatial analysis
+
+#power_total_long3$States <- as.character(power_total_long3$States)
 
 
 #####################
@@ -243,9 +270,9 @@ b
 
 ggsave(filename = "3_output/power_consumption_state_india_static.tiff")
 
-########################
-#6. Geo Spatial Analysis
-########################
+############################################################################################
+###########################GEO-SPATIAL ANALYSIS & PLOTTING##################################
+############################################################################################
 
 # Steps to follow to download shape files for India:
 #1. go to GADM Website and search India: https://gadm.org/download_country_v3.html
@@ -258,6 +285,30 @@ ggsave(filename = "3_output/power_consumption_state_india_static.tiff")
 
 # working with spatial data guide: https://cmerow.github.io/RDataScience/04_Spatial.html
 
+##############################################################################
+# useful links to follow on how to plot data merging shape file and dataframe:
+##############################################################################
+#1. India shape file loading issues: https://stackoverflow.com/questions/47617480/why-is-plot-of-gadm-spatialpolygonsdataframe-not-loading-in-r
+#2. GADM website for shape files: https://gadm.org/index.html
+#3. how to call GADM shape file directly in R: https://www.researchgate.net/post/Can_someone_help_me_to_find_a_shape_file_for_Indian_districts
+#4. Test shape files by dragging to this website: https://mapshaper.org
+#5. Geospatial Data analysis in R Tutorial: http://mazamascience.com/WorkingWithData/?p=1277
+#6. How to join shape file and dataframe for ggplot: https://gis.stackexchange.com/questions/110183/join-csv-file-to-shapefile
+#7. How to keep information in shape file after fortify() : https://stackoverflow.com/questions/22096787/how-keep-information-from-shapefile-after-fortify
+#8. Introduction to GIS using R: Tutorial: https://mgimond.github.io/Spatial/introGIS.html
+#9. Introduction to visualising spatial data in R:https://cran.r-project.org/doc/contrib/intro-spatial-rl.pdf
+#10. Using spatial data in R: tutorial: https://cengel.github.io/R-spatial/
+#11. Beautiful thematic maps with ggplot2 (only) : https://timogrossenbacher.ch/2016/12/beautiful-thematic-maps-with-ggplot2-only/
+#12. Animating maps with  gganimate: https://ditheringdata.netlify.app/2018/01/01/gganimate/
+
+
+
+
+
+
+############################
+#1. Create/Save Shape file
+############################
 
 library(ggplot2)
 #install.packages("rgeos")
@@ -273,49 +324,11 @@ library(RColorBrewer)
 #install.packages("sp")
 library(sp)
 
-#india_map <- readRDS("1_data/india_shape_files/gadm36_IND_0_sp.rds")
 
+###############################
+# A. Shape file with whole j&k
+##############################
 # Step1 : Load shape file, link: Plot Spatial Data / Shapefiles in R | Gun Violence in Chicago: https://www.youtube.com/watch?v=uZtto0cYjZM
-india_shape <- rgdal::readOGR(dsn = "1_data/india_shape_files/india_state", layer="India-States")
-
-plot(india_shape)
-
-names(india_shape) #check shape file attributes
-print(india_shape$ST_NM) #check shape file attributes
-
-# Step2: get ready data file : data file is already loaded
-
-# Step3: fortify shape into dataframe
-india_shape_fortify <- fortify(india_shape, region = "ST_NM")
-
-
-# Step4: merge shapefile with csv file
-merge.shp.coef<-merge(shp.f,imr, by="id", all.x=TRUE)
-final.plot<-merge.shp.coef[order(merge.shp.coef$order), ]
-
-# Step5: create map
-ggplot()+
-  geom_polygon(data = final.plot,
-               aes(x = long, y = lat, group = group, fill = count),
-               color = "black", size = 0.25) + coord_map()
-
-
-#ggsave("India_IMR_2013_BLUE.png",dpi = 300, width = 20, height = 20, units = "cm")
-#############################################################################################
-
-#Creating and ploting spatial object
-#Link: https://cran.r-project.org/doc/contrib/intro-spatial-rl.pdf
-
-#1. Load dataset
-power_total_long3 <- power %>%
-  filter(States != "ALL INDIA TOTAL" & Date == as.Date("2019-10-28")) %>% 
-  select(Date, States, Usage) # , longitude, latitude: don't need long and lat as it is already in shape file
-
-# power_total_long3 <- power %>%
-#   filter(States != "ALL INDIA TOTAL") %>% 
-#   select(Date, States, Usage) # , longitude, latitude: don't need long and lat as it is already in shape file
-
-#2. load shape file
 india_shape <- rgdal::readOGR(dsn = "1_data/india_shape_files/india_state", layer="India-States")
 
 #str(india_shape)
@@ -328,71 +341,113 @@ print(india_shape$ST_NM) # this shows what state names are stored
 
 nrow(india_shape)
 
-#3. merging shape file with data
+
+
+#########################
+#A. Plot just data points
+#########################
+
+# FOllowing code works from youtube: 
+#make data spatial
+coordinates(power_total_long3) = c("longitude", "latitude")
+crs.geo1 <- CRS("+proj=longlat")
+proj4string(power_total_long3) = crs.geo1
+
+
+plot(power_total_long3, pch = 20, col = "steelblue")
+
+plot(india_shape)
+points(power_total_long3, pch=20, col = "orange")
+
+ggplot() +
+  # polygons
+  geom_polygon(data = power_total_long3, aes(x = longitude, 
+                                             y = latitude, 
+                                             group = States, 
+                                             fill = Usage),
+               color = "gray20")
+
+
+##################################
+#B. Plot using full j&k shape file
+##################################
+#Note: All the steps are from: 
+# Introduction to visualising spatial data in R: https://cran.r-project.org/doc/contrib/intro-spatial-rl.pdf
+
+#2. merging shape file with data
 #india_shape_merge <- merge(india_shape, power_total_long3,  by="States", all.x=TRUE)
 
-#comparing names of the states before merge
+#2.1. comparing names of the states before merge
 india_shape$ST_NM %in% power_total_long3$States
 
-# return rows where names do not match
+#2.2. return rows where names do not match
 india_shape$ST_NM[!india_shape$ST_NM %in% power_total_long3$States]
 
-# to know unique names from both the files
+#2.3. to know unique names from both the files
 unique(india_shape$ST_NM)
 
 unique(power_total_long3$States)
 
-# change state names in dataframe
+#2.4. change state names in dataframe
 
-#power_total_long3$States <- as.character(power_total_long3$States)
-
-library(plyr)
-library(dplyr)
-
-power_total_long3 <- power_total_long3 %>% 
-  mutate(States=revalue(States, c("HP"="Himachal Pradesh", "DNH"="Dadara & Nagar Havelli",
-                                 "J&K"="Jammu & Kashmir", "MP"="Madhya Pradesh",
-                                 "NER Meghalaya"="Meghalaya", "Delhi"="NCT of Delhi",
-                                 "Pondy"="Puducherry","NR UP"="Uttar Pradesh")))
-
-#since it is factor variable we have to use revalue funtion to change levels
+# #power_total_long3$States <- as.character(power_total_long3$States)
+# 
+# library(plyr)
+# library(dplyr)
+# 
+# power_total_long3 <- power_total_long3 %>% 
+#   mutate(States=revalue(States, c("HP"="Himachal Pradesh", "DNH"="Dadara & Nagar Havelli",
+#                                   "J&K"="Jammu & Kashmir", "MP"="Madhya Pradesh",
+#                                   "NER Meghalaya"="Meghalaya", "Delhi"="NCT of Delhi",
+#                                   "Pondy"="Puducherry","NR UP"="Uttar Pradesh")))
+# 
+# #since it is factor variable we have to use revalue function to change levels
 # link- https://stackoverflow.com/questions/40064324/use-revalue-in-data-manipulation-with-dplyr
 
 india_shape$ST_NM[india_shape$ST_NM=="Arunanchal Pradesh"]<- "Arunachal Pradesh" #correct spelling in shape file
 
 
-# recheck by returning rows where names do not match
+#2.5. recheck by returning rows where names do not match
 india_shape$ST_NM[!india_shape$ST_NM %in% power_total_long3$States]
 
 india_shape@data$id <- rownames(india_shape@data)
 
-# merge files by left join
+#2.6. merge files by left join
 #names(india_shape)[names(india_shape) == "ST_NM"] <- "States" # changing name of the state identifier column name to match the power dataset
 #india_shape@data <- left_join(india_shape@data, power_total_long3, by = "States")
 
 india_shape@data <- left_join(india_shape@data, power_total_long3, by = c("ST_NM" = "States"))
 
+#2.7. fortify shape file so it can be used with ggplot
 india_shape_df <- fortify(india_shape) #alternative broom::tidy(india_shape, region = "States")
 
-india_shape_df <-join(india_shape_df,india_shape@data, by="id")
+india_shape_df <- left_join(india_shape_df,india_shape@data, by="id")
 
-
+#2.8. plot the data using ggplot
 ggplot(india_shape_df, aes(x=long, y = lat, group=ST_NM))+
   geom_polygon(aes(fill=Usage), color = "black", size = 0.25)+
   coord_fixed()+
   scale_fill_gradient(name= "Power\nConsumption\n(MU)", low = "white", high = "darkred")
 
-#############################
-# using GADM shape file
-#############################
+# Note: Issue with this shape file is when plotted with data, the map is not clear.
+# Related mapping command is commented out with heading: Mapping Approach with full j&k below
+#ggsave("India_IMR_2013_BLUE.png",dpi = 300, width = 20, height = 20, units = "cm")
+#############################################################################################
+
+
+##############################################
+#C. map with GADM Shape file without whole j&k
+##############################################
+#india_map <- readRDS("1_data/india_shape_files/gadm36_IND_0_sp.rds") # this will open saved .rds file downloaded from GADM website
+
 
 #install.packages("raster")
 library(sp)
 library(raster) # raster is dependant on sp package
 
-#IN0 <- getData('GADM', country='IND', level=0)
+#india0 <- getData('GADM', country='IND', level=0)
 india01 <- getData('GADM', country='IND', level=1)
-#IN2 <- getData('GADM', country='IND', level=2)
+#india02 <- getData('GADM', country='IND', level=2)
 
 names(india01)
 unique(india01$NAME_1)
@@ -409,18 +464,8 @@ unique(india_shape$ST_NM)
 
 unique(power_total_long3$States)
 
-# change state names in dataframe
-
-#power_total_long3$States <- as.character(power_total_long3$States)
-
-library(plyr)
-library(dplyr)
-
-power_total_long3 <- power_total_long3 %>% 
-  mutate(States=revalue(States, c("HP"="Himachal Pradesh", "DNH"="Dadara & Nagar Havelli",
-                                  "J&K"="Jammu and Kashmir", "MP"="Madhya Pradesh",
-                                  "NER Meghalaya"="Meghalaya", "Delhi"="NCT of Delhi",
-                                  "Pondy"="Puducherry","NR UP"="Uttar Pradesh")))
+# change state names in the dataframe
+# note: this step is moved to the first section of the R-script
 
 #recheck state name mismatch
 india01$NAME_1[!india01$NAME_1%in% power_total_long3$States]
@@ -442,26 +487,9 @@ ggplot()+
   scale_fill_gradient(low="thistle2", high="darkred", 
                       guide="colorbar", na.value="white") +
   labs(title = "India Power Consumption (MU), 2020", x = element_blank(), y = element_blank(), 
-       fill='Usage') +   theme(legend.position = "bottom") 
-
-
-
-
-
-
-# fortify shape file
-india <- fortify(india01, region = "GID_1")
-
-
-ggplot()+
-  geom_map(data = power_total_long3, aes(map_id = States, fill = Usage),
-           map = india) +
-  expand_limits(x = india$long, y = india$lat) +
-  coord_fixed(.96) +
-  scale_fill_gradient(low="thistle2", high="darkred", 
-                      guide="colorbar", na.value="white") +
-  labs(title = "India Power Consumption (MU), 2020", x = element_blank(), y = element_blank(), 
-       fill='Usage') +   theme(legend.position = "bottom") 
+       fill='Usage') +   
+  theme_classic() +
+  theme(legend.position = "bottom") 
 
 
 
@@ -473,43 +501,6 @@ ggplot()+
 
 
 
-#install.packages("tmap")
-library(tmap)
-
-qtm(shp = india_shape, fill = "Usage", fill.palette = "-Blue")
-
-#################################################################
-
-# Step3: fortify shape into dataframe
-india_shape_fortify <- fortify(india_shape)
-
-head(india_shape_fortify, n = 2)
-
-india_shape_fortify$id <- row.names(india_shape)
-
-india_shape_fortify <- left_join(india_shape_fortify, india_shape@data)
-
-india_shape_fortify <- left_join(india_shape_fortify, power_total_long3, by = c("ST_NM" = "States"))
-
-
-
-install.packages("maps")
-
-library(maps)
-
-us <- map_data("state")
-
-
-
-
-
-
-india_shape_fortify2 <- fortify(india_shape, region = "ST_NM")
-
-
-names(india_shape)
-
-print(india_shape$ST_NM)
 
 
 
@@ -518,25 +509,35 @@ print(india_shape$ST_NM)
 
 
 
-# FOllowing code works from youtube: 
-#make data spatial
-coordinates(power_total_long3) = c("longitude", "latitude")
-crs.geo1 <- CRS("+proj=longlat")
-proj4string(power_total_long3) = crs.geo1
 
 
-plot(power_total_long3, pch = 20, col = "steelblue")
 
-plot(india_shape)
-points(power_total_long3, pch=20, col = "orange")
 
-ggplot() +
-  # polygons
-  geom_polygon(data = power_total_long3, aes(x = longitude, 
-                                     y = latitude, 
-                                     group = States, 
-                                     fill = Usage),
-               color = "gray20")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
