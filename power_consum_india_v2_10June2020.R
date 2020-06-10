@@ -27,6 +27,10 @@
 ############
 rm(list=ls())
 
+# to detach all packages at the start: https://rdrr.io/github/jasongraf1/JGmisc/man/detachAllPackages.html
+#devtools::install_github("jasongraf1/JGmisc")
+library(JGmisc)
+detachAllPackages(keep = NULL)
 
 #gganimate
 getwd()
@@ -305,7 +309,7 @@ ggsave(filename = "3_output/power_consumption_state_india_static.tiff")
 #10. Using spatial data in R: tutorial: https://cengel.github.io/R-spatial/
 #11. Beautiful thematic maps with ggplot2 (only) : https://timogrossenbacher.ch/2016/12/beautiful-thematic-maps-with-ggplot2-only/
 #12. Animating maps with  gganimate: https://ditheringdata.netlify.app/2018/01/01/gganimate/
-
+#13. Polygons from a reference map: https://ggplot2.tidyverse.org/reference/geom_map.html
 
 
 
@@ -454,34 +458,55 @@ library(raster) # raster is dependant on sp package
 india01 <- getData('GADM', country='IND', level=1)
 #india02 <- getData('GADM', country='IND', level=2)
 
-names(india01)
-unique(india01$NAME_1)
+#fortifying shape file
+india01_shape_df <- broom::tidy(india01, region = "NAME_1") 
 
-#load("IND_adm1.RData")
-#comparing names of the states before merge
-india01$NAME_1 %in% power_total_long3$States
+#Note: Following the steps given in https://cran.r-project.org/doc/contrib/intro-spatial-rl.pdf
+# is not allowing fortifying shape file using fortify(shapefile, region = ) option.
+# as I can't specify region during fortifying, the generated dataframe (india01_shape_df) contains id variable
+# which have only one value i.e.1 if I merge this fortified object with datafile to give 
+# final dataframe (india01_shape_df_fortify). But this produces NULL values on attached variables
+# from the CSV files due to faulty fortified file.
+# one workaround suggested by : http://r-sig-geo.2731867.n2.nabble.com/fortify-SpatialPolygonsDataFrame-error-td7312421.html
+# is to fortify shape file immediately after calling it and before attaching any data. If we are using ggplot then no need to merge
+# the shape file and dataset. I followed this approach (which is explained in:
+# https://gis.stackexchange.com/questions/110183/join-csv-file-to-shapefile)
+# to create ggplot using fortified object and actual dataset from CSV file. This works fine!!!
 
-# return rows where names do not match
-india01$NAME_1[!india01$NAME_1%in% power_total_long3$States]
+# names(india01)
+# unique(india01$NAME_1)
+# 
+# #load("IND_adm1.RData")
+# #comparing names of the states before merge
+# india01$NAME_1 %in% power_total_long3$States
+# 
+# # return rows where names do not match
+# india01$NAME_1[!india01$NAME_1%in% power_total_long3$States]
+# 
+# # to know unique names from both the files
+# unique(india01$NAME_1)
+# 
+# unique(power_total_long3$States)
+# 
+# # change state names in the dataframe
+# # note: this step is moved to the first section of the R-script
+# 
+# #recheck state name mismatch
+# india01$NAME_1[!india01$NAME_1%in% power_total_long3$States]
+# 
+# india01@data$id <- rownames(india01@data)
+# 
+# india01@data <- left_join(india01@data, power_total_long3, by = c("NAME_1" = "States"))
+# 
+# #india01_shape_df <- fortify(india01) #alternative broom::tidy(india_shape, region = "States")
+# # to check if the shape file have valid geometrics : https://stackoverflow.com/questions/46003060/error-using-region-argument-when-fortifying-shapefile
+# rgeos::gIsValid(india01) #returns TRUE
+# library(rgeos)
+# library(maptools)
+# 
+# india01_shape_df <- fortify(india01)  #india01_shape_df <- broom::tidy(india01, region = "NAME_1")
 
-# to know unique names from both the files
-unique(india_shape$ST_NM)
-
-unique(power_total_long3$States)
-
-# change state names in the dataframe
-# note: this step is moved to the first section of the R-script
-
-#recheck state name mismatch
-india01$NAME_1[!india01$NAME_1%in% power_total_long3$States]
-
-india01@data$id <- rownames(india01@data)
-
-india01@data <- left_join(india01@data, power_total_long3, by = c("NAME_1" = "States"))
-
-india01_shape_df <- fortify(india01) #alternative broom::tidy(india_shape, region = "States")
-#india01_shape_df <- fortify(india01, region = "NAME_1") 
-india01_shape_df_fortify  <- left_join(india01_shape_df,india01@data, by="id")
+#india01_shape_df_fortify  <- right_join(india01_shape_df,india01@data, by="id")
 
 
 ggplot()+
@@ -497,6 +522,159 @@ ggplot()+
   theme(legend.position = "bottom") 
 
 
+################################
+#######Animating Map plot#######
+################################
+#Sources:
+#1. https://kelseygonzalez.github.io/portfolio/COVID-19%20Population%20Mobility/
+#2. https://ditheringdata.netlify.app/2018/01/01/gganimate/
+#3. https://timogrossenbacher.ch/2016/12/beautiful-thematic-maps-with-ggplot2-only/
+
+library(tidyverse)
+library(gganimate)
+library(ggthemes)
+library(choroplethr)
+library(maps)
+library(htmltools)
+#require(transformr)
+
+theme_set(theme_minimal())
+
+theme_map <- function(...) {
+  theme_minimal() +
+    theme(
+      axis.line = element_blank(),
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_blank(),
+      plot.background = element_rect(fill = "white", color = NA), 
+      panel.background = element_rect(fill = "white", color = NA), 
+      legend.background = element_rect(fill = "white", color = NA),
+      legend.title = element_blank(), 
+      panel.border = element_blank(),
+      legend.position = "none",
+      plot.caption = element_text(hjust = 1, face= "italic"),
+      plot.title.position = "plot",
+      plot.caption.position =  "plot"
+      )
+}
+
+#############
+b <- ggplot(data = india01_test_f,
+            aes(frame = Date)) +
+  geom_polygon(aes(
+    x = long,
+    y = lat,
+    group = group,
+    fill = Usage
+  ),
+  color = "#8c8c8c") +
+  theme_map() +
+  scale_fill_gradient(low="thistle2", high="darkred", 
+                      guide="colorbar", na.value="white") +
+  coord_map() + #"albers",
+  #lat0 = 30,
+  #lat1 = 40) +
+  labs(title = "State Level Daily Power Consumption in India \n(1 January 2019 to 23 May 2020", x = element_blank(), y = element_blank(), 
+       subtitle = "Week of: {frame_along}",
+       fill='Usage(MU)',
+       caption = "Power Consumption data from Kaggle\nChart by @preshitambade") +
+  theme_classic() +
+  theme(legend.position = "bottom") +
+  transition_states(
+    states = date,
+    transition_length = 1.5,
+    state_length = 1
+  )
+
+animate(b, height = 600, width = 1000, end_pause = 10)
+
+anim_save(filename = "3_output/power_consumption_indiamap_animate.gif") 
+###############
+
+
+ggplot(power_total_long3, aes(map_id = States, frame = Date))+
+  geom_map(aes(fill = Usage),
+           map = india01_shape_df) +
+  expand_limits(x = india01_shape_df$long, y = india01_shape_df$lat) +
+  coord_fixed(.96) +
+  scale_fill_gradient(low="thistle2", high="darkred", 
+                      guide="colorbar", na.value="white") +
+  labs(title = "India Power Consumption (MU), 2020", x = element_blank(), y = element_blank(), 
+       fill='Usage') +   
+  theme_classic() +
+  theme(legend.position = "bottom") +
+  transition_states(
+    states = date,
+    transition_length = 1.5,
+    state_length = 1
+  )
+
+#############################
+
+#install.packages("raster")
+library(sp)
+library(raster) # raster is dependant on sp package
+
+india01_test <- getData('GADM', country='IND', level=1)
+
+
+names(india01_test)
+unique(india01_test$NAME_1)
+
+# changing name of the state identifier column name to match the power dataset
+names(india01_test)[names(india01_test) == "NAME_1"] <- "States" 
+
+#load("IND_adm1.RData")
+#comparing names of the states before merge
+india01_test$States %in% power_total_long3$States
+
+# # return rows where names do not match
+india01_test$States[!india01_test$States%in% power_total_long3$States]
+
+# # to know unique names from both the files
+unique(india01_test$States)
+
+unique(power_total_long3$States)
+
+# # change state names in the dataframe
+# # note: this step is moved to the first section of the R-script
+#
+# #recheck state name mismatch
+india01_test$States[!india01_test$States%in% power_total_long3$States]
+
+#2.add id column to the shape file
+india01_test@data$id <- rownames(india01_test@data)
+
+#3.additional step to join data with shape file before fortify
+india01_test@data   <- join(india01_test@data, power_total_long3, by="States") # this additional step suggested by:
+
+#4.fortify the shape file
+india01_test_fortify <- broom::tidy(india01_test, region = "States")
+#india01_test_fortify2 <- broom::tidy(india01_test, region = "id")
+# if I do step-3 then step-4 doesn't work with region subcommand. so do following and check
+india01_test_fortify <- broom::tidy(india01_test)
+# above command correctly creates fortified data frame
+# check if id variable mateches with id variable from original shape file (india01_test)
+# "id" variable in both should start with 1
+
+#5. merge data from shape file with the fortified file
+india01_test_fortify_df  <- join(india01_test_fortify, india01_test@data, by = "id")
+
+india01_test_fortify_df  <- join(india01_test_fortify, india01_test@data, by = "id")
+
+
+
+
+# no problem with either of command above
+
+india01_test_fortify_df  <- join(india01_test_fortify, india01_test@data, by = c("States"="id"))
+
+india01_test_fortify_df  <- join(india01_test_fortify_df, power_total_long3, by = c( "id"="States"))
 
 
 
@@ -507,47 +685,30 @@ ggplot()+
 
 
 
+india01_test_fortify_df  <- join(india01_test_fortify, india01_test@data, by="States")
+
+# india01_test@data <- merge(india01_test_shape_df, power_total_long3, by = c("NAME_1" = "States"))
+
+india01_test@data <- left_join(india01_test@data, power_total_long3, by = c("NAME_1" = "States"))
+
+
+# india01_test_shape_df_fortify  <- merge(india01_test_shape_df, india01_test@data, by="id")
+
+#
+# #india01_shape_df <- fortify(india01) #alternative broom::tidy(india_shape, region = "States")
+# # to check if the shape file have valid geometrics : https://stackoverflow.com/questions/46003060/error-using-region-argument-when-fortifying-shapefile
+rgeos::gIsValid(india01_test) #returns TRUE
+library(rgeos)
+library(maptools)
+#
+#india01_test_shape_df <- fortify(india01_test)  #india01_shape_df <- broom::tidy(india01, region = "NAME_1")
 
 
 
 
 
+india01_test_shape_df_fortify  <- join(india01_shape_df, india01_test@data, by="id")
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
