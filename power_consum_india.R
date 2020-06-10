@@ -6,6 +6,7 @@
 # Animation inspiration:{https://kelseygonzalez.github.io/portfolio/COVID-19%20Population%20Mobility/}
 # International energy consumption: https://medium.com/@aarushidave/electricity-consumption-during-covid-19-e6fa5ea91dbb
 
+#creating maps: http://data-analytics.net/wp-content/uploads/2014/09/geo2.html
 #https://www.datanovia.com/en/blog/gganimate-how-to-create-plots-with-beautiful-animation-in-r/
 #https://kelseygonzalez.github.io/portfolio/COVID-19%20Population%20Mobility/
 #https://github.com/kelseygonzalez/covid_mobility
@@ -300,14 +301,224 @@ ggplot()+
 
 
 #ggsave("India_IMR_2013_BLUE.png",dpi = 300, width = 20, height = 20, units = "cm")
+#############################################################################################
 
+#Creating and ploting spatial object
+#Link: https://cran.r-project.org/doc/contrib/intro-spatial-rl.pdf
+
+#1. Load dataset
 power_total_long3 <- power %>%
-  filter(States != "ALL INDIA TOTAL") %>% 
-  select(Date, States, Usage, longitude, latitude)
+  filter(States != "ALL INDIA TOTAL" & Date == as.Date("2019-10-28")) %>% 
+  select(Date, States, Usage) # , longitude, latitude: don't need long and lat as it is already in shape file
+
+# power_total_long3 <- power %>%
+#   filter(States != "ALL INDIA TOTAL") %>% 
+#   select(Date, States, Usage) # , longitude, latitude: don't need long and lat as it is already in shape file
+
+#2. load shape file
+india_shape <- rgdal::readOGR(dsn = "1_data/india_shape_files/india_state", layer="India-States")
+
+#str(india_shape)
+
+plot(india_shape)
+
+names(india_shape) # to know where state names are stored in the shape file
+
+print(india_shape$ST_NM) # this shows what state names are stored
+
+nrow(india_shape)
+
+#3. merging shape file with data
+#india_shape_merge <- merge(india_shape, power_total_long3,  by="States", all.x=TRUE)
+
+#comparing names of the states before merge
+india_shape$ST_NM %in% power_total_long3$States
+
+# return rows where names do not match
+india_shape$ST_NM[!india_shape$ST_NM %in% power_total_long3$States]
+
+# to know unique names from both the files
+unique(india_shape$ST_NM)
+
+unique(power_total_long3$States)
+
+# change state names in dataframe
+
+#power_total_long3$States <- as.character(power_total_long3$States)
+
+library(plyr)
+library(dplyr)
+
+power_total_long3 <- power_total_long3 %>% 
+  mutate(States=revalue(States, c("HP"="Himachal Pradesh", "DNH"="Dadara & Nagar Havelli",
+                                 "J&K"="Jammu & Kashmir", "MP"="Madhya Pradesh",
+                                 "NER Meghalaya"="Meghalaya", "Delhi"="NCT of Delhi",
+                                 "Pondy"="Puducherry","NR UP"="Uttar Pradesh")))
+
+#since it is factor variable we have to use revalue funtion to change levels
+# link- https://stackoverflow.com/questions/40064324/use-revalue-in-data-manipulation-with-dplyr
+
+india_shape$ST_NM[india_shape$ST_NM=="Arunanchal Pradesh"]<- "Arunachal Pradesh" #correct spelling in shape file
+
+
+# recheck by returning rows where names do not match
+india_shape$ST_NM[!india_shape$ST_NM %in% power_total_long3$States]
+
+india_shape@data$id <- rownames(india_shape@data)
+
+# merge files by left join
+#names(india_shape)[names(india_shape) == "ST_NM"] <- "States" # changing name of the state identifier column name to match the power dataset
+#india_shape@data <- left_join(india_shape@data, power_total_long3, by = "States")
+
+india_shape@data <- left_join(india_shape@data, power_total_long3, by = c("ST_NM" = "States"))
+
+india_shape_df <- fortify(india_shape) #alternative broom::tidy(india_shape, region = "States")
+
+india_shape_df <-join(india_shape_df,india_shape@data, by="id")
+
+
+ggplot(india_shape_df, aes(x=long, y = lat, group=ST_NM))+
+  geom_polygon(aes(fill=Usage), color = "black", size = 0.25)+
+  coord_fixed()+
+  scale_fill_gradient(name= "Power\nConsumption\n(MU)", low = "white", high = "darkred")
+
+#############################
+# using GADM shape file
+#############################
+
+#install.packages("raster")
+library(sp)
+library(raster) # raster is dependant on sp package
+
+#IN0 <- getData('GADM', country='IND', level=0)
+india01 <- getData('GADM', country='IND', level=1)
+#IN2 <- getData('GADM', country='IND', level=2)
+
+names(india01)
+unique(india01$NAME_1)
+
+#load("IND_adm1.RData")
+#comparing names of the states before merge
+india01$NAME_1 %in% power_total_long3$States
+
+# return rows where names do not match
+india01$NAME_1[!india01$NAME_1%in% power_total_long3$States]
+
+# to know unique names from both the files
+unique(india_shape$ST_NM)
+
+unique(power_total_long3$States)
+
+# change state names in dataframe
+
+#power_total_long3$States <- as.character(power_total_long3$States)
+
+library(plyr)
+library(dplyr)
+
+power_total_long3 <- power_total_long3 %>% 
+  mutate(States=revalue(States, c("HP"="Himachal Pradesh", "DNH"="Dadara & Nagar Havelli",
+                                  "J&K"="Jammu and Kashmir", "MP"="Madhya Pradesh",
+                                  "NER Meghalaya"="Meghalaya", "Delhi"="NCT of Delhi",
+                                  "Pondy"="Puducherry","NR UP"="Uttar Pradesh")))
+
+#recheck state name mismatch
+india01$NAME_1[!india01$NAME_1%in% power_total_long3$States]
+
+india01@data$id <- rownames(india01@data)
+
+india01@data <- left_join(india01@data, power_total_long3, by = c("NAME_1" = "States"))
+
+india01_shape_df <- fortify(india01) #alternative broom::tidy(india_shape, region = "States")
+#india01_shape_df <- fortify(india01, region = "NAME_1") 
+india01_shape_df_fortify  <- left_join(india01_shape_df,india01@data, by="id")
+
+
+ggplot()+
+  geom_map(data = power_total_long3, aes(map_id = States, fill = Usage),
+           map = india01_shape_df) +
+  expand_limits(x = india01_shape_df$long, y = india01_shape_df$lat) +
+  coord_fixed(.96) +
+  scale_fill_gradient(low="thistle2", high="darkred", 
+                      guide="colorbar", na.value="white") +
+  labs(title = "India Power Consumption (MU), 2020", x = element_blank(), y = element_blank(), 
+       fill='Usage') +   theme(legend.position = "bottom") 
 
 
 
 
+
+
+# fortify shape file
+india <- fortify(india01, region = "GID_1")
+
+
+ggplot()+
+  geom_map(data = power_total_long3, aes(map_id = States, fill = Usage),
+           map = india) +
+  expand_limits(x = india$long, y = india$lat) +
+  coord_fixed(.96) +
+  scale_fill_gradient(low="thistle2", high="darkred", 
+                      guide="colorbar", na.value="white") +
+  labs(title = "India Power Consumption (MU), 2020", x = element_blank(), y = element_blank(), 
+       fill='Usage') +   theme(legend.position = "bottom") 
+
+
+
+
+
+
+
+
+
+
+
+#install.packages("tmap")
+library(tmap)
+
+qtm(shp = india_shape, fill = "Usage", fill.palette = "-Blue")
+
+#################################################################
+
+# Step3: fortify shape into dataframe
+india_shape_fortify <- fortify(india_shape)
+
+head(india_shape_fortify, n = 2)
+
+india_shape_fortify$id <- row.names(india_shape)
+
+india_shape_fortify <- left_join(india_shape_fortify, india_shape@data)
+
+india_shape_fortify <- left_join(india_shape_fortify, power_total_long3, by = c("ST_NM" = "States"))
+
+
+
+install.packages("maps")
+
+library(maps)
+
+us <- map_data("state")
+
+
+
+
+
+
+india_shape_fortify2 <- fortify(india_shape, region = "ST_NM")
+
+
+names(india_shape)
+
+print(india_shape$ST_NM)
+
+
+
+
+
+
+
+
+# FOllowing code works from youtube: 
 #make data spatial
 coordinates(power_total_long3) = c("longitude", "latitude")
 crs.geo1 <- CRS("+proj=longlat")
@@ -319,6 +530,13 @@ plot(power_total_long3, pch = 20, col = "steelblue")
 plot(india_shape)
 points(power_total_long3, pch=20, col = "orange")
 
+ggplot() +
+  # polygons
+  geom_polygon(data = power_total_long3, aes(x = longitude, 
+                                     y = latitude, 
+                                     group = States, 
+                                     fill = Usage),
+               color = "gray20")
 
 
 
