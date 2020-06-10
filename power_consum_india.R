@@ -88,9 +88,14 @@ power_total_long3 <- power_total_long3 %>%
                                   "NER Meghalaya"="Meghalaya", "Delhi"="NCT of Delhi",
                                   "Pondy"="Puducherry","NR UP"="Uttar Pradesh")))
 
-# above step is done to matche the state names with the shape files used in spatial analysis
+# above step is done to match the state names with the shape files used in spatial analysis
 
 #power_total_long3$States <- as.character(power_total_long3$States)
+
+#check dataset
+glimpse(power_total_long3)
+summary(power_total_long3)
+unique(power_total_long3$Date)
 
 
 #####################
