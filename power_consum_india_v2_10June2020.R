@@ -458,7 +458,9 @@ c <- ggplot(data = india01_test_f,
     state_length = 1
   )
 
-gganimate::animate(c, height = 600, width = 1000, end_pause = 10)
+library(gganimate)
+
+animate(c, height = 600, width = 1000, end_pause = 10, renderer = gifski_renderer())
 
 anim_save(filename = "3_output/power_consumption_indiamap_animate.gif") 
 
