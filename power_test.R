@@ -137,15 +137,15 @@ india01_test_f <- left_join(india01_test_f, india01_test@data) # it automaticall
 
 # plot the data
 
-map <- ggplot(india01_test_f, aes(long, lat, group = group, fill = Usage)) + 
-  geom_polygon() + 
-  coord_equal() +
-  labs(x = "latitide", y = "longitude",
-       fill = "Power\nConsumption(MU)") + 
-  ggtitle("India Power Consumption")
-
-
-map
+# map <- ggplot(india01_test_f, aes(long, lat, group = group, fill = Usage)) + 
+#   geom_polygon() + 
+#   coord_equal() +
+#   labs(x = "latitide", y = "longitude",
+#        fill = "Power\nConsumption(MU)") + 
+#   ggtitle("India Power Consumption")
+# 
+# 
+# map
 ############################
 # Animate the spatial data
 ###########################
