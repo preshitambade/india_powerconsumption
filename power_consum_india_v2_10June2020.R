@@ -34,7 +34,7 @@ detachAllPackages(keep = NULL)
 
 # to turn global warnings off
 # link: https://stackoverflow.com/questions/16194212/how-to-suppress-warnings-globally-in-an-r-script
-options(warn=-1)
+#options(warn=-1)
 
 
 #gganimate
@@ -144,13 +144,13 @@ power_baseplot2
 #file_renderer failed to copy frames to the destination directory
 #https://community.rstudio.com/t/warning-message-file-renderer-failed-to-copy-frames-to-the-destination-directory/45261
 
-power_baseplot3 <- power_baseplot2+
-  labs(title = "Daily Power Consumption by states in India",
-       subtitle = "Date: {frame_time}") + 
-  transition_time(Date) +
-  shadow_wake(wake_length = 0.2)
-
-power_baseplot3
+# power_baseplot3 <- power_baseplot2+
+#   labs(title = "Daily Power Consumption by states in India",
+#        subtitle = "Date: {frame_time}") + 
+#   transition_time(Date) +
+#   shadow_wake(wake_length = 0.2)
+# 
+# power_baseplot3
 
 
 ################################
@@ -253,36 +253,35 @@ anim_save(filename = "3_output/power_consumption_state_india_animate.gif")
 
 #Data source: Weekly energey reports from Power System Operation Corporation Limited (POSOCO)
 
-############################################
-#5. Creating Static Plot for selected states
-############################################
-
-# Just plot the graph without animation for selected states
-power_total_long2 <- power_total_long %>%
-  filter(States =="Tamil Nadu" | States == "Andhra Pradesh" | States =="Karnataka" | #"Telangana", - telangana data is inconsistent so excluded
-           States =="Maharashtra" | States =="Delhi" | States =="Gujarat") %>% 
-  select(Date, States, Usage, lab)
-
-
-
-b <- ggplot(power_total_long2, aes(x = Date,
-                                  y = Usage,
-                                  colour = lab)) +
-  geom_line(position = "identity") +
-  geom_vline(xintercept = lock1startdate, col = "red", lty = 1) + #add vertical lines for lockdown dates
-  geom_vline(xintercept = lock1enddate, col = "green", lty = 1) +
-  geom_vline(xintercept = lock2enddate, col = "orange", lty = 1) +
-  geom_vline(xintercept = lock3enddate, col = "black", lty = 1) +
-  xlab("") +
-  ylab("Daily Power Consumed in Mega Units (MU)") +
-  scale_x_date(date_breaks = "1 week",
-               date_labels = "%m-%d") +
-  theme(legend.position = "right", axis.text.x = element_text(angle = 90))+
-  ggtitle("Daily Power Consumption by Selected States in India \n(28 October 2019 to 23 May 2020)") +
-  labs(caption = "(based on data from weekly energey reports published by Power System Operation Corporation Limited (POSOCO))") # this adds caption at bottom right corner
-b
-
-ggsave(filename = "3_output/power_consumption_state_india_static.tiff")
+# ############################################
+# #5. Creating Static Plot for selected states
+# ############################################
+# 
+# # Just plot the graph without animation for selected states
+# power_total_long2 <- power_total_long %>%
+#   filter(States =="Tamil Nadu" | States == "Andhra Pradesh" | States =="Karnataka" | #"Telangana", - telangana data is inconsistent so excluded
+#            States =="Maharashtra" | States =="Delhi" | States =="Gujarat") %>% 
+#   select(Date, States, Usage, lab)
+# 
+# 
+# b <- ggplot(power_total_long2, aes(x = Date,
+#                                   y = Usage,
+#                                   colour = lab)) +
+#   geom_line(position = "identity") +
+#   geom_vline(xintercept = lock1startdate, col = "red", lty = 1) + #add vertical lines for lockdown dates
+#   geom_vline(xintercept = lock1enddate, col = "green", lty = 1) +
+#   geom_vline(xintercept = lock2enddate, col = "orange", lty = 1) +
+#   geom_vline(xintercept = lock3enddate, col = "black", lty = 1) +
+#   xlab("") +
+#   ylab("Daily Power Consumed in Mega Units (MU)") +
+#   scale_x_date(date_breaks = "1 week",
+#                date_labels = "%m-%d") +
+#   theme(legend.position = "right", axis.text.x = element_text(angle = 90))+
+#   ggtitle("Daily Power Consumption by Selected States in India \n(28 October 2019 to 23 May 2020)") +
+#   labs(caption = "(based on data from weekly energey reports published by Power System Operation Corporation Limited (POSOCO))") # this adds caption at bottom right corner
+# b
+# 
+# ggsave(filename = "3_output/power_consumption_state_india_static.tiff")
 
 ############################################################################################
 ###########################GEO-SPATIAL ANALYSIS & PLOTTING##################################
@@ -459,7 +458,7 @@ c <- ggplot(data = india01_test_f,
     state_length = 1
   )
 
-animate(c, height = 600, width = 1000, end_pause = 10)
+gganimate::animate(c, height = 600, width = 1000, end_pause = 10)
 
 anim_save(filename = "3_output/power_consumption_indiamap_animate.gif") 
 
@@ -471,9 +470,9 @@ anim_save(filename = "3_output/power_consumption_indiamap_animate.gif")
 # code to combine gifs from https://github.com/thomasp85/gganimate/wiki/Animation-Composition
 a_mgif <- magick::image_read("3_output/power_consumption_state_india_animate.gif")
 c_mgif <- magick::image_read("3_output/power_consumption_indiamap_animate.gif")
-new_gif <- magick::image_append(c(a_mgif[1], b_mgif[1]))
+new_gif <- magick::image_append(c(a_mgif[1], c_mgif[1]))
 for (i in 2:100) {
-  combined <- magick::image_append(c(a_mgif[i], b_mgif[i]))
+  combined <- magick::image_append(c(a_mgif[i], c_mgif[i]))
   new_gif <- c(new_gif, combined)
 }
 
@@ -484,7 +483,7 @@ anim_save(filename = "3_output/combined_animate.gif")
 
 
 # turn global warnings on
-options(warn=0)
+#options(warn=0)
 
 
 
