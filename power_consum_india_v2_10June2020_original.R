@@ -395,6 +395,7 @@ india01_test_f <- left_join(india01_test_f, india01_test@data) # it automaticall
 #2. https://ditheringdata.netlify.app/2018/01/01/gganimate/
 #3. https://timogrossenbacher.ch/2016/12/beautiful-thematic-maps-with-ggplot2-only/
 
+detachAllPackages(keep = NULL)
 
 library(tidyverse)
 library(gganimate)
@@ -403,6 +404,7 @@ library(choroplethr)
 library(maps)
 library(htmltools)
 library(mapproj)
+library(viridis)
 #require(transformr)
 
 theme_set(theme_minimal())
@@ -429,6 +431,138 @@ theme_map <- function(...) {
       plot.caption.position =  "plot"
     )
 }
+
+
+
+c <- ggplot(data = india01_test_f,
+            aes(frame = Date)) +
+  geom_polygon(aes(
+    x = long,
+    y = lat,
+    group = group,
+    fill = Usage
+  ),
+  color = "#8c8c8c") +
+  coord_map() + #"albers", #?mapproj::mapproject()
+  #lat0 = 30,
+  #lat1 = 40) +
+  theme_map() +
+  labs(x = element_blank(), 
+       y = element_blank(),
+       title = "State Level Power Consumption in India: ",
+       caption = "Power Consumption data from Kaggle\nChart by @preshitambade") +
+  theme(legend.position = "bottom") +
+  scale_fill_viridis(option = "magma",
+                     direction = -1,
+                     name = "Daily Usage(MU)",
+                      guide= guide_colorbar(
+                        direction = "horizontal",
+                        barheight = unit(2, units = "mm"),
+                        barwidth = unit(50, units = "mm"),
+                        draw.ulim = F,
+                        title.position = 'top',
+                      ), na.value="grey50") +
+  theme_classic() + 
+transition_states(
+  states = Date,
+  transition_length = 1.5,
+  state_length = 1
+)
+
+  
+animate(c, height = 600, width = 1000, end_pause = 10, renderer = gifski_renderer())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ggplot(data = india01_test_f,
+         aes(frame = Date)) +
+  geom_polygon(aes(
+    x = long,
+    y = lat,
+    group = group,
+    fill = Usage
+  ),
+  color = "#8c8c8c") + 
+  theme_map() +
+  scale_fill_gradient(low="thistle2", high="darkred", 
+                      guide="colorbar", na.value="white",
+                      name = "Daily Usage(MU)") +
+  ggtitle("State Level Daily Power Consumption in India: ") +
+  coord_map("albers", #?mapproj::mapproject()
+            lat0 = 30,
+            lat1 = 40) +
+  labs(caption = "Power Consumption data from Kaggle\nChart by @preshitambade")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+c <- ggplot(data = india01_test_f,
+            aes(frame = Date)) +
+  geom_polygon(aes(
+    x = long,
+    y = lat,
+    group = group,
+    fill = Usage
+  ),
+  color = "#8c8c8c") +
+  theme_map() +
+  scale_fill_gradient(low="thistle2", 
+                      high="darkred") +
+  coord_map("albers", #?mapproj::mapproject()
+  lat0 = 30,
+  lat1 = 40) +
+  labs(caption = "Power Consumption data from Kaggle\nChart by @preshitambade") +
+  transition_states(
+    states = Date,
+    transition_length = 1.5,
+    state_length = 1
+  )
+
+animate(c, height = 400, end_pause = 10)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 c <- ggplot(data = india01_test_f,
@@ -458,7 +592,6 @@ c <- ggplot(data = india01_test_f,
     state_length = 1
   )
 
-library(gganimate)
 
 animate(c, height = 600, width = 1000, end_pause = 10, renderer = gifski_renderer())
 
