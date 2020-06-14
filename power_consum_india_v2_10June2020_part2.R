@@ -142,13 +142,13 @@ a <- ggplot(power_total_long, aes(x = Date,
                date_labels = "%m-%d") +
   scale_y_continuous(labels = scales::comma_format()) + #this code block respecifies x and y axis for better visualization
   transition_reveal(along = Date) +
-  ggtitle("Daily Power Consumption by Selected States in India \n(28 October 2019 to 23 May 2020)",
-          subtitle = "Week of: {frame_along}") +
-  labs(caption = "(based on data from weekly energey reports published by Power System Operation Corporation Limited (POSOCO))") + # this adds caption at bottom right corner
+  ggtitle("Daily Power Consumption by Selected States in India", #\n(28 October 2019 to 23 May 2020)",
+          subtitle = "on: {frame_along}") +
+  labs(caption = "Power Consumption data from Kaggle\nGraph by @preshitambade") + # this adds caption at bottom right corner
   view_follow(fixed_y = T)  # this code block animates the plot with suitable title
 
 
-
-animate(a, height = 600, width = 1000, end_pause = 10)
+animate(a, nframes = 2*length(unique(power_total_long$Date)), height = 600, width = 1000, end_pause = 10, renderer = gifski_renderer())
+#animate(a, height = 600, width = 1000, end_pause = 10)
 
 anim_save(filename = "3_output/power_consumption_state_india_animate.gif") 
