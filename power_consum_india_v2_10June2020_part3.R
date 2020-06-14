@@ -320,8 +320,11 @@ c <- ggplot(data = final.df,
 # link- https://stackoverflow.com/questions/60820794/using-gganimate-and-getting-all-kind-of-errors
 # can add view steps for transition_states()
 #link- https://stackoverflow.com/questions/61041371/r-ggplot2-animation-along-date-variable-gives-error-if-i-add-view-step
+# transition_state example: https://github.com/thomasp85/gganimate/issues/137
+# Transition_state documentation: https://rdrr.io/github/thomasp85/gganimate/man/transition_states.html
 
-animate(c, height = 600, width = 1000, end_pause = 10, renderer = gifski_renderer())
+animate(c, nframes = 2*length(unique(final.df$Date)), height = 600, width = 1000, end_pause = 10, renderer = gifski_renderer())
+#nframes needs to be defined to plot all dates. Link: https://stackoverflow.com/questions/52332967/problem-with-many-50-states-in-gganimate
 anim_save(filename = "3_output/power_consumption_indiamap_animate.gif") 
 
 #some issues with animations using map:https://community.rstudio.com/t/animating-maps-issues-and-questions/55170
